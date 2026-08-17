@@ -6,5 +6,3 @@ while True:
     print("Engine ECU → RPM 2000 sent")
     time.sleep(1)
 
-
-
