@@ -27,3 +27,5 @@ For a brake value of `75%`:
 ```text
 Decimal: 75
 Hexadecimal: 4B
+
+
