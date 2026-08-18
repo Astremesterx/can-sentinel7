@@ -24,5 +24,6 @@ The vehicle speed is stored as an 8-bit unsigned integer.
 
 For a vehicle speed of `60 km/h`:
 
+```text
 Decimal: 60
 Hexadecimal: 3C
