@@ -11,3 +11,4 @@ while True:
     print(f"Speed ECU → {speed} km/h")
 
     time.sleep(1)
+
