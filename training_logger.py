@@ -13,44 +13,47 @@ with open("can_training_dataset.csv", "w", newline="") as file:
     try:
         while True:
             msg = bus.recv()
-            if msg is None:
-                continue
 
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             can_id = msg.arbitration_id
             data = msg.data
-            if data is None:
-                continue
             raw = data.hex().upper()
 
             label = "normal"
 
-            if can_id == 0x101 and len(data) >= 2:
+            if can_id == 0x101:
                 rpm = (data[0] << 8) | data[1]
                 if rpm > 6000:
                     label = "anomaly"
 
-            elif can_id == 0x102 and len(data) >= 1:
+            elif can_id == 0x102:
                 speed = data[0]
                 if speed > 120:
                     label = "anomaly"
 
-            elif can_id == 0x103 and len(data) >= 1:
+            elif can_id == 0x103:
                 brake = data[0]
                 if brake > 100:
                     label = "anomaly"
 
-            elif can_id == 0x104 and len(data) >= 2:
+            elif can_id == 0x104:
                 steering = ((data[0] << 8) | data[1]) - 450
                 if steering < -450 or steering > 450:
                     label = "anomaly"
 
-            elif can_id == 0x105 and len(data) >= 1:
+            elif can_id == 0x105:
                 temp = data[0]
                 if temp > 120:
                     label = "anomaly"
 
-            writer.writerow([timestamp, hex(can_id), msg.dlc, raw, label])
+            writer.writerow([
+                timestamp,
+                hex(can_id),
+                msg.dlc,
+                raw,
+                label
+            ])
+
             print(timestamp, hex(can_id), raw, label)
 
     except KeyboardInterrupt:
