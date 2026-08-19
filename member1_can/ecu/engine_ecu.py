@@ -1,16 +1,27 @@
-import os
+import can
 import time
 import random
 
-while True:
-    rpm = random.randint(800, 4000)
+bus = can.interface.Bus(channel="vcan0", interface="socketcan")
 
-    high = (rpm >> 8) & 0xFF
-    low = rpm & 0xFF
+def main():
+    while True:
+        rpm = random.randint(800, 4000)
 
-    data = f"{high:02X}{low:02X}000000000000"
+        high = (rpm >> 8) & 0xFF
+        low = rpm & 0xFF
 
-    os.system(f"cansend vcan0 101#{data}")
-    print(f"Engine ECU → RPM {rpm}")
+        data = bytes([high, low] + [0] * 6)
 
-    time.sleep(1)
+        msg = can.Message(arbitration_id=0x101, data=data, is_extended_id=False)
+        try:
+            bus.send(msg)
+            print(f"Engine ECU → RPM {rpm}")
+        except can.CanError:
+            print("Failed to send CAN message")
+
+        time.sleep(1)
+
+
+if __name__ == "__main__":
+    main()
