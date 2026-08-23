@@ -1,4 +1,5 @@
 import sys
+
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -11,6 +12,7 @@ from PyQt5.QtWidgets import (
     QTableWidgetItem,
     QHeaderView
 )
+
 from PyQt5.QtCore import Qt
 
 
@@ -111,6 +113,21 @@ class Dashboard(QMainWindow):
         )
 
         content_layout.addWidget(traffic_table)
+
+        # Security alerts
+        alert_title = QLabel("Security Alerts")
+        alert_title.setStyleSheet(
+            "font-size: 18px; font-weight: bold;"
+        )
+
+        content_layout.addWidget(alert_title)
+
+        alert_message = QLabel("No active threats")
+        alert_message.setStyleSheet(
+            "font-size: 16px;"
+        )
+
+        content_layout.addWidget(alert_message)
 
         main_layout.addWidget(sidebar)
         main_layout.addWidget(content)
