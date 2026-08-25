@@ -1,20 +1,27 @@
 import sys
-
+import json
 from PyQt5.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QWidget,
-    QHBoxLayout,
-    QVBoxLayout,
-    QLabel,
-    QFrame,
-    QTableWidget,
-    QTableWidgetItem,
-    QHeaderView
+    QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
+    QLabel, QFrame, QTableWidget, QTableWidgetItem, QHeaderView
 )
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
 
-from PyQt5.QtCore import Qt
+class AlertListenerThread(QThread):
+    new_alert = pyqtSignal(dict)
 
+    def run(self):
+        # Continuously read from standard input
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                # If it's a JSON alert from the ML Engine
+                data = json.loads(line)
+                if data.get("alert_type") == "INTRUSION_DETECTED":
+                    self.new_alert.emit(data)
+            except json.JSONDecodeError:
+                pass
 
 class Dashboard(QMainWindow):
     def __init__(self):
@@ -25,31 +32,23 @@ class Dashboard(QMainWindow):
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-
         main_layout = QHBoxLayout(central_widget)
 
         # Sidebar
         sidebar = QFrame()
         sidebar.setFixedWidth(220)
-
         sidebar_layout = QVBoxLayout(sidebar)
 
         title = QLabel("CAN-SENTINEL")
         title.setAlignment(Qt.AlignCenter)
-
-        dashboard = QLabel("Dashboard")
-        can_monitoring = QLabel("CAN Monitoring")
-        alerts = QLabel("Security Alerts")
-        ecu_status = QLabel("ECU Status")
-        analysis = QLabel("Analysis")
+        title.setStyleSheet("font-size: 20px; font-weight: bold; margin-bottom: 20px;")
 
         sidebar_layout.addWidget(title)
-        sidebar_layout.addSpacing(30)
-        sidebar_layout.addWidget(dashboard)
-        sidebar_layout.addWidget(can_monitoring)
-        sidebar_layout.addWidget(alerts)
-        sidebar_layout.addWidget(ecu_status)
-        sidebar_layout.addWidget(analysis)
+        sidebar_layout.addWidget(QLabel("Dashboard"))
+        sidebar_layout.addWidget(QLabel("CAN Monitoring"))
+        sidebar_layout.addWidget(QLabel("Security Alerts"))
+        sidebar_layout.addWidget(QLabel("ECU Status"))
+        sidebar_layout.addWidget(QLabel("Analysis"))
         sidebar_layout.addStretch()
 
         # Main dashboard
@@ -58,84 +57,68 @@ class Dashboard(QMainWindow):
 
         heading = QLabel("Diagnostic Dashboard")
         heading.setStyleSheet("font-size: 24px; font-weight: bold;")
-
-        status = QLabel("System Status: Monitoring")
-        status.setStyleSheet("font-size: 16px;")
+        self.status = QLabel("System Status: Monitoring Live Traffic")
+        self.status.setStyleSheet("font-size: 16px; color: green;")
 
         content_layout.addWidget(heading)
-        content_layout.addWidget(status)
+        content_layout.addWidget(self.status)
 
         # Dashboard cards
         cards_layout = QHBoxLayout()
-
-        can_card = QLabel("CAN Messages\n0")
-        ecu_card = QLabel("ECUs Online\n0")
-        alert_card = QLabel("Security Alerts\n0")
-
-        cards_layout.addWidget(can_card)
-        cards_layout.addWidget(ecu_card)
-        cards_layout.addWidget(alert_card)
-
+        self.alert_count = 0
+        self.alert_card = QLabel("Security Alerts\n0")
+        self.alert_card.setStyleSheet("font-size: 18px; padding: 20px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 8px;")
+        
+        cards_layout.addWidget(self.alert_card)
         content_layout.addLayout(cards_layout)
 
-        # CAN traffic matrix
-        traffic_title = QLabel("Live CAN Traffic Matrix")
-        traffic_title.setStyleSheet(
-            "font-size: 18px; font-weight: bold;"
-        )
-
-        content_layout.addWidget(traffic_title)
-
-        traffic_table = QTableWidget()
-        traffic_table.setColumnCount(5)
-        traffic_table.setHorizontalHeaderLabels(
-            ["Timestamp", "CAN ID", "DLC", "Data", "Status"]
-        )
-
-        traffic_table.setRowCount(3)
-
-        data = [
-            ["12:41:02", "0x123", "8", "01 02 03 04 05 06 07 08", "Normal"],
-            ["12:41:03", "0x456", "8", "A1 B2 C3 D4 E5 F6 07 08", "Normal"],
-            ["12:41:04", "0x789", "4", "10 20 30 40", "Normal"]
-        ]
-
-        for row, row_data in enumerate(data):
-            for column, value in enumerate(row_data):
-                traffic_table.setItem(
-                    row,
-                    column,
-                    QTableWidgetItem(value)
-                )
-
-        traffic_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.Stretch
-        )
-
-        content_layout.addWidget(traffic_table)
-
-        # Security alerts
-        alert_title = QLabel("Security Alerts")
-        alert_title.setStyleSheet(
-            "font-size: 18px; font-weight: bold;"
-        )
-
+        # Security Alerts Table
+        alert_title = QLabel("Live Intrusion Alerts")
+        alert_title.setStyleSheet("font-size: 18px; font-weight: bold; margin-top: 20px;")
         content_layout.addWidget(alert_title)
 
-        alert_message = QLabel("No active threats")
-        alert_message.setStyleSheet(
-            "font-size: 16px;"
+        self.traffic_table = QTableWidget()
+        self.traffic_table.setColumnCount(5)
+        self.traffic_table.setHorizontalHeaderLabels(
+            ["Timestamp", "Component", "CAN ID", "Frequency (Hz)", "Status"]
         )
-
-        content_layout.addWidget(alert_message)
+        self.traffic_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        content_layout.addWidget(self.traffic_table)
 
         main_layout.addWidget(sidebar)
         main_layout.addWidget(content)
 
+        # Start background listener
+        self.listener = AlertListenerThread()
+        self.listener.new_alert.connect(self.add_alert)
+        self.listener.start()
+
+    def add_alert(self, data):
+        self.alert_count += 1
+        self.alert_card.setText(f"Security Alerts\n{self.alert_count}")
+        self.alert_card.setStyleSheet("font-size: 18px; padding: 20px; background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; border-radius: 8px; font-weight: bold;")
+        self.status.setText("System Status: INTRUSION DETECTED!")
+        self.status.setStyleSheet("font-size: 16px; color: red; font-weight: bold;")
+
+        row_position = self.traffic_table.rowCount()
+        self.traffic_table.insertRow(row_position)
+
+        self.traffic_table.setItem(row_position, 0, QTableWidgetItem(str(data.get("timestamp", ""))))
+        
+        # Highlight component clearly
+        comp_item = QTableWidgetItem(str(data.get("component", "Unknown")))
+        comp_item.setForeground(Qt.red)
+        self.traffic_table.setItem(row_position, 1, comp_item)
+        
+        self.traffic_table.setItem(row_position, 2, QTableWidgetItem(str(data.get("can_id", ""))))
+        self.traffic_table.setItem(row_position, 3, QTableWidgetItem(str(data.get("frequency", ""))))
+        
+        status_item = QTableWidgetItem(str(data.get("status", "ANOMALY")))
+        status_item.setForeground(Qt.white)
+        status_item.setBackground(Qt.red)
+        self.traffic_table.setItem(row_position, 4, status_item)
 
 app = QApplication(sys.argv)
-
 window = Dashboard()
 window.show()
-
 sys.exit(app.exec_())
