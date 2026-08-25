@@ -7,10 +7,17 @@ import pandas as pd
 from sklearn.ensemble import IsolationForest
 import warnings
 
-# Suppress sklearn warnings about feature names when predicting single rows
 warnings.filterwarnings("ignore", category=UserWarning)
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'models', 'isolation_forest.pkl')
+
+SYSTEM_MAP = {
+    0x101: "Engine",
+    0x102: "Speed",
+    0x103: "Brakes",
+    0x104: "Steering",
+    0x105: "Temperature"
+}
 
 def train_model(dataset_path):
     print(f"[*] Loading dataset from {dataset_path}...")
@@ -20,16 +27,17 @@ def train_model(dataset_path):
         print(f"[-] Error: Could not find dataset at {dataset_path}")
         return
 
-    features = ['frequency', 'inter_arrival_time']
+    features = ['can_id', 'frequency', 'inter_arrival_time']
     if not all(feature in df.columns for feature in features):
-        print("[-] Error: Dataset must contain 'frequency' and 'inter_arrival_time' columns.")
+        print("[-] Error: Dataset must contain 'can_id', 'frequency', and 'inter_arrival_time'.")
         return
 
+    # Convert hexadecimal can_id strings to integers for the ML model
+    df['can_id'] = df['can_id'].apply(lambda x: int(str(x), 16) if isinstance(x, str) else x)
+
     X = df[features]
-    print(f"[*] Training Isolation Forest on {len(X)} samples...")
+    print(f"[*] Training Isolation Forest on {len(X)} samples with features: {features}...")
     
-    # Contamination represents the expected proportion of outliers.
-    # Set to a very small value assuming normal training data is mostly clean.
     model = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
     model.fit(X)
 
@@ -42,12 +50,9 @@ def run_live():
         print(f"[-] Error: Trained model not found at {MODEL_PATH}. Please run with --train first.")
         return
 
-    print("[*] Loading trained Isolation Forest model...")
     model = joblib.load(MODEL_PATH)
-    print("[+] Model loaded. Listening on stdin for live C-Sniffer data...")
-
-    # Expected CSV format from the C Sniffer:
-    # timestamp,sequence_num,can_id,dlc,payload,message_count,frequency,inter_arrival_time
+    
+    # Indices based on C-Sniffer CSV output
     FREQ_IDX = 6
     IAT_IDX = 7
     ID_IDX = 2
@@ -56,52 +61,50 @@ def run_live():
         for line in sys.stdin:
             line = line.strip()
             if not line or line.startswith("timestamp"):
-                continue  # Skip header or empty lines
+                continue
 
             parts = line.split(',')
             if len(parts) < 8:
                 continue
 
-            can_id = parts[ID_IDX]
             try:
+                can_id_hex = parts[ID_IDX]
+                can_id_int = int(can_id_hex, 16)
                 freq = float(parts[FREQ_IDX])
                 iat = float(parts[IAT_IDX])
             except ValueError:
                 continue
 
-            # Skip prediction if frequency is 0 (first message ever seen for this ID)
             if freq == 0.0:
                 continue
 
-            # Predict (1 = normal, -1 = anomaly)
-            prediction = model.predict([[freq, iat]])[0]
+            # Predict based on CAN ID and timing features
+            prediction = model.predict([[can_id_int, freq, iat]])[0]
             
             if prediction == -1:
+                component = SYSTEM_MAP.get(can_id_int, "Unknown")
                 alert = {
                     "alert_type": "INTRUSION_DETECTED",
                     "timestamp": parts[0],
-                    "can_id": can_id,
-                    "frequency": freq,
-                    "inter_arrival_time": iat,
+                    "can_id": can_id_hex,
+                    "component": component,
+                    "frequency": round(freq, 2),
                     "status": "ANOMALY",
-                    "message": f"Suspicious traffic frequency spike detected on CAN ID {can_id}!"
+                    "message": f"CRITICAL: Anomaly detected on {component} (ID: {can_id_hex})!"
                 }
                 print(json.dumps(alert))
                 sys.stdout.flush()
 
     except KeyboardInterrupt:
-        print("\n[*] Shutting down ML Engine.")
+        sys.exit(0)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="CAN-Sentinel ML Engine")
-    parser.add_argument("--train", type=str, help="Path to CSV dataset for training")
-    parser.add_argument("--live", action="store_true", help="Run live anomaly detection reading from stdin")
-    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--train", type=str)
+    parser.add_argument("--live", action="store_true")
     args = parser.parse_args()
 
     if args.train:
         train_model(args.train)
     elif args.live:
         run_live()
-    else:
-        parser.print_help()
