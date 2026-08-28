@@ -1,0 +1,119 @@
+# CAN-Sentinel – Project Summary
+
+## Overview
+
+**CAN-Sentinel** is a Python-based automotive cybersecurity project designed to monitor and detect suspicious activity on a Controller Area Network (CAN) bus.
+
+The project simulates multiple Electronic Control Units (ECUs), generates CAN traffic, performs attack simulations, collects CAN data, and uses anomaly detection techniques to identify potentially malicious communication.
+
+## Key Components
+
+### 1. ECU Simulation
+
+Multiple vehicle ECUs are simulated using Python:
+
+* Engine ECU
+* Speed ECU
+* Brake ECU
+* Steering ECU
+* Temperature ECU
+
+Each ECU generates CAN messages according to predefined CAN IDs and message contracts.
+
+### 2. CAN Message Specification
+
+The project defines:
+
+* CAN ID assignments
+* Message structure
+* Data fields
+* Expected communication behavior
+* ECU-specific message contracts
+
+This provides a consistent communication model between the simulated ECUs.
+
+### 3. Virtual CAN Network
+
+A Linux virtual CAN interface (`vcan0`) is used to create a realistic CAN-bus testing environment without requiring physical automotive hardware.
+
+### 4. Attack Simulation
+
+The project includes an attacker ECU capable of generating abnormal or malicious CAN traffic.
+
+The attack simulation helps demonstrate how unauthorized CAN messages can affect normal vehicle communication.
+
+### 5. CAN Traffic Logging
+
+CAN traffic is captured and stored in datasets for analysis.
+
+The logging component records information such as:
+
+* Timestamp
+* CAN ID
+* Data
+* Message frequency
+* ECU-related information
+* Traffic classification
+
+### 6. Training Dataset
+
+A labeled dataset is generated to support machine-learning-based anomaly detection.
+
+The dataset contains normal and abnormal CAN communication patterns.
+
+### 7. Monitoring and Anomaly Detection
+
+The monitoring and anomaly-detection components analyze CAN traffic and identify deviations from expected communication behavior.
+
+The goal is to distinguish between:
+
+**Normal CAN Traffic → Expected ECU behavior**
+
+**Abnormal CAN Traffic → Potential attack or anomaly**
+
+## Technologies Used
+
+* Python
+* Linux / Kali Linux
+* Virtual CAN (`vcan0`)
+* `python-can`
+* CSV-based datasets
+* Machine Learning
+* Git & GitHub
+
+## Project Objective
+
+The main objective of CAN-Sentinel is to demonstrate how cybersecurity monitoring and anomaly detection can be applied to automotive CAN networks.
+
+The project provides a controlled environment for understanding:
+
+* CAN communication
+* Automotive network security
+* Attack simulation
+* Security monitoring
+* Dataset generation
+* Anomaly detection
+
+## Project Workflow
+
+```text
+ECU Simulation
+      ↓
+CAN Traffic Generation
+      ↓
+Attack Simulation
+      ↓
+Traffic Logging
+      ↓
+Dataset Creation
+      ↓
+Model Training
+      ↓
+Anomaly Detection
+```
+
+## Outcome
+
+CAN-Sentinel demonstrates a complete experimental workflow for automotive CAN-bus security, from ECU simulation and CAN traffic generation to attack simulation, dataset creation, monitoring, and anomaly detection.
+
+The project can be further extended with additional attack types, improved machine-learning models, real-time security alerts, visualization dashboards, and physical CAN hardware integration.
