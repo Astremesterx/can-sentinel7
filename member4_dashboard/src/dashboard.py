@@ -65,11 +65,13 @@ class Dashboard(QMainWindow):
 
         # Dashboard cards
         cards_layout = QHBoxLayout()
+        self.threat_level = QLabel("Threat Level\nNORMAL")
         self.alert_count = 0
         self.alert_card = QLabel("Security Alerts\n0")
         self.alert_card.setStyleSheet("font-size: 18px; padding: 20px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 8px;")
-        
+        self.threat_level.setStyleSheet("font-size: 18px; padding: 20px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 8px;")
         cards_layout.addWidget(self.alert_card)
+        cards_layout.addWidget(self.threat_level)
         content_layout.addLayout(cards_layout)
 
         # Security Alerts Table
@@ -96,7 +98,9 @@ class Dashboard(QMainWindow):
     def add_alert(self, data):
         self.alert_count += 1
         self.alert_card.setText(f"Security Alerts\n{self.alert_count}")
+        self.threat_level.setText("Threat Level\nHIGH")
         self.alert_card.setStyleSheet("font-size: 18px; padding: 20px; background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; border-radius: 8px; font-weight: bold;")
+        self.threat_level.setStyleSheet("font-size: 18px; padding: 20px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; font-weight: bold;")
         self.status.setText("System Status: INTRUSION DETECTED!")
         self.status.setStyleSheet("font-size: 16px; color: red; font-weight: bold;")
 
