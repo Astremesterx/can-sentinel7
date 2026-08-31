@@ -73,6 +73,12 @@ class Dashboard(QMainWindow):
         cards_layout.addWidget(self.alert_card)
         cards_layout.addWidget(self.threat_level)
         content_layout.addLayout(cards_layout)
+        vehicle_title = QLabel("Vehicle System View")
+        vehicle_title.setStyleSheet("font-size: 18px; font-weight: bold; margin-top: 20px;")
+        content_layout.addWidget(vehicle_title)
+        self.vehicle_view = QLabel("ENGINE    SPEED   BRAKE    STEERING    TEMPERATURE")
+        self.vehicle_view.setStyleSheet("font-size: 16px; padding: 30px; border: 1px solid #ddd; border-radius: 8px;")
+        content_layout.addWidget(self.vehicle_view)
 
         # Security Alerts Table
         alert_title = QLabel("Live Intrusion Alerts")
