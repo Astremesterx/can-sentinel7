@@ -2,19 +2,41 @@
 
 ## Automotive ECU Intrusion Detection System
 
-CAN-Sentinel is a simulated automotive cybersecurity system designed
-to demonstrate the detection of anomalous and potentially malicious
-traffic on a Controller Area Network (CAN).
+CAN-Sentinel is a simulated automotive cybersecurity system designed to demonstrate the detection of anomalous and potentially malicious traffic on a Controller Area Network (CAN).
 
-The project simulates a vehicle CAN environment containing multiple
-Electronic Control Units (ECUs), generates normal vehicle traffic,
-introduces malicious CAN traffic through an attacker simulation,
-captures and analyzes the traffic, and presents the detection results
-through a diagnostic dashboard.
+The project creates a virtual vehicle CAN environment using Linux SocketCAN and `vcan0`. Multiple simulated Electronic Control Units (ECUs) generate normal vehicle traffic, while an attacker simulation introduces abnormal CAN messages.
 
-The system combines low-level CAN traffic acquisition, traffic
-analysis, machine learning-based anomaly detection, and a graphical
-diagnostic interface.
+The generated CAN traffic is captured by a C-based CAN sniffer, processed into traffic and timing features, and analyzed using a machine-learning based anomaly detection engine. Detection results can then be presented through a PyQt-based diagnostic dashboard.
+
+The project demonstrates the following intrusion detection workflow:
+
+```text
+
+ECU Simulation
+
+      ↓
+
+CAN Traffic on vcan0
+
+      ↓
+
+C-Based CAN Sniffer
+
+      ↓
+
+Traffic Features
+
+      ↓
+
+Isolation Forest
+
+      ↓
+
+Intrusion Detection
+
+      ↓
+
+Diagnostic Dashboard
 
 ---
 
