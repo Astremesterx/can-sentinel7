@@ -44,42 +44,46 @@ a single end-to-end system.
 
 The high-level architecture is:
 
-```text
-                    CAN-SENTINEL
-                         |
-          +--------------+--------------+
-          |                             |
-      Normal ECUs                    Attacker
-          |                             |
-          +--------------+--------------+
-                         |
-                         v
-                      vcan0
-                         |
-                         v
-              +---------------------+
-              |   CAN Traffic       |
-              |      Sniffer        |
-              |     (C-based)       |
-              +---------------------+
-                         |
-                         v
-              Traffic Processing
-               & Feature Data
-                         |
-                         v
-              +---------------------+
-              |  ML / Detection     |
-              |      Engine          |
-              |     (Python)        |
-              +---------------------+
-                         |
-                         v
-                Anomaly Result
-                         |
-                         v
-              +---------------------+
-              | Diagnostic          |
-              | Dashboard           |
-              |     (PyQt)          |
-              +---------------------+
+```                    +----------------+
+                    |   Normal ECUs  |
+                    +-------+--------+
+                            |
+                            |
+                    +-------v--------+
+                    |    Attacker    |
+                    +-------+--------+
+                            |
+                            v
+                       +---------+
+                       |  vcan0  |
+                       +----+----+
+                            |
+                            v
+                   +------------------+
+                   |   C CAN Sniffer |
+                   +--------+---------+
+                            |
+                            v
+                  +--------------------+
+                  |  Traffic Features  |
+                  |                    |
+                  | CAN ID             |
+                  | Timestamp          |
+                  | Payload            |
+                  | Frequency          |
+                  | Inter-arrival Time |
+                  +---------+----------+
+                            |
+                            v
+                   +------------------+
+                   |  Isolation Forest|
+                   +--------+---------+
+                            |
+                 +----------+----------+
+                 |                     |
+               Normal               Anomaly
+                                       |
+                                       v
+                             +----------------+
+                             | PyQt Dashboard |
+                             +----------------+
