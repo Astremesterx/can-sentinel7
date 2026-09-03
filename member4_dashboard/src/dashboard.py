@@ -108,6 +108,7 @@ class Dashboard(QMainWindow):
         self.alert_card.setStyleSheet("font-size: 18px; padding: 20px; background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; border-radius: 8px; font-weight: bold;")
         self.threat_level.setStyleSheet("font-size: 18px; padding: 20px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; font-weight: bold;")
         self.status.setText("System Status: INTRUSION DETECTED!")
+        self.vehicle_view.setText(f"⚠️ Affected System: {data.get('component', 'Unknown')}")
         self.status.setStyleSheet("font-size: 16px; color: red; font-weight: bold;")
 
         row_position = self.traffic_table.rowCount()
