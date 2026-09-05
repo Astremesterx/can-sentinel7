@@ -109,3 +109,61 @@ The high-level architecture is:
                              +----------------+
                              | PyQt Dashboard |
                              +----------------+
+---
+
+# 3. How to Replicate and Run the Project
+
+This guide provides step-by-step instructions for anyone looking to test or replicate the CAN-Sentinel pipeline.
+
+## Prerequisites
+- Linux Environment (e.g., Kali Linux natively or via WSL)
+- Python 3
+- GCC (for the C sniffer)
+
+### Step 1: Install Dependencies
+Install the required Python libraries for the ML Engine and Dashboard:
+\\\ash
+pip3 install scikit-learn pandas joblib python-can PyQt5
+\\\
+
+### Step 2: Compile the C-Sniffer
+Compile the low-level SocketCAN sniffer:
+\\\ash
+cd member2_sniffer
+make
+cd ..
+\\\
+
+### Step 3: Start the Virtual Car Network (Terminal 1)
+Boot up the \can0\ interface and start all normal ECUs in the background:
+\\\ash
+sudo modprobe vcan
+sudo ip link add dev vcan0 type vcan
+sudo ip link set vcan0 up
+./member1_can/scripts/start_all_ecus.sh
+\\\
+*(Leave this terminal running. The virtual car is now generating baseline traffic).*
+
+### Step 4: Train the ML Model (Terminal 2)
+Capture 10 seconds of baseline traffic using the sniffer and train the Isolation Forest:
+\\\ash
+# 1. Capture data (Wait 10 seconds, then press Ctrl+C)
+./member2_sniffer/output/sniffer > member3_ml/data/can_normal_dataset.csv
+
+# 2. Train the AI on the captured baseline
+python3 member3_ml/src/ml_engine.py --train member3_ml/data/can_normal_dataset.csv
+\\\
+
+### Step 5: Launch the Diagnostic Dashboard (Terminal 2)
+Run the ultimate chained pipeline! This pipes the live C-Sniffer into the ML Engine, and routes the AI alerts straight into the PyQt Dashboard:
+\\\ash
+./member2_sniffer/output/sniffer | python3 member3_ml/src/ml_engine.py --live | python3 member4_dashboard/src/dashboard.py
+\\\
+*(A dark-themed Vehicle Diagnostics GUI will pop open, showing all ECUs as SECURE).*
+
+### Step 6: Simulate a Cyberattack (Terminal 3)
+Inject spoofed, high-frequency malicious packets to trigger an anomaly:
+\\\ash
+python3 member1_can/attacker/attack_ecu.py
+\\\
+*(Watch the PyQt Dashboard instantly highlight the compromised physical component and log the intrusion alerts!)*

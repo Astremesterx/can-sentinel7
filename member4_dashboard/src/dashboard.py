@@ -1,135 +1,160 @@
 import sys
 import json
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
+    QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout,
     QLabel, QFrame, QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtGui import QFont, QColor
 
 class AlertListenerThread(QThread):
     new_alert = pyqtSignal(dict)
 
     def run(self):
-        # Continuously read from standard input
         for line in sys.stdin:
             line = line.strip()
-            if not line:
-                continue
+            if not line: continue
             try:
-                # If it's a JSON alert from the ML Engine
                 data = json.loads(line)
                 if data.get("alert_type") == "INTRUSION_DETECTED":
                     self.new_alert.emit(data)
             except json.JSONDecodeError:
                 pass
 
+class ECUWidget(QFrame):
+    def __init__(self, name):
+        super().__init__()
+        self.name = name
+        self.setStyleSheet("""
+            QFrame {
+                background-color: #1e1e1e;
+                border: 2px solid #333333;
+                border-radius: 10px;
+                padding: 10px;
+            }
+        """)
+        layout = QVBoxLayout(self)
+        
+        self.title = QLabel(name.upper())
+        self.title.setAlignment(Qt.AlignCenter)
+        self.title.setStyleSheet("color: #aaaaaa; font-weight: bold; font-size: 14px; border: none;")
+        
+        self.status = QLabel("SECURE")
+        self.status.setAlignment(Qt.AlignCenter)
+        self.status.setStyleSheet("color: #00e676; font-weight: bold; font-size: 18px; border: none;")
+        
+        layout.addWidget(self.title)
+        layout.addWidget(self.status)
+
+    def set_compromised(self):
+        self.setStyleSheet("""
+            QFrame {
+                background-color: #3b0000;
+                border: 2px solid #ff1744;
+                border-radius: 10px;
+                padding: 10px;
+            }
+        """)
+        self.title.setStyleSheet("color: #ff5252; font-weight: bold; font-size: 14px; border: none;")
+        self.status.setStyleSheet("color: #ff1744; font-weight: bold; font-size: 18px; border: none;")
+        self.status.setText("COMPROMISED")
+
 class Dashboard(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("CAN-Sentinel | Vehicle Diagnostics")
+        self.setGeometry(100, 100, 1200, 800)
+        self.setStyleSheet("background-color: #0d0d0d; color: #ffffff; font-family: 'Segoe UI', Arial;")
 
-        self.setWindowTitle("CAN-Sentinel Diagnostic Dashboard")
-        self.setGeometry(100, 100, 1200, 700)
+        central = QWidget()
+        self.setCentralWidget(central)
+        main_layout = QVBoxLayout(central)
+        main_layout.setContentsMargins(20, 20, 20, 20)
 
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        main_layout = QHBoxLayout(central_widget)
+        # Header
+        header = QLabel("CAN-SENTINEL ACTIVE DIAGNOSTICS")
+        header.setAlignment(Qt.AlignCenter)
+        header.setStyleSheet("font-size: 28px; font-weight: bold; color: #00e676; margin-bottom: 20px; letter-spacing: 2px;")
+        main_layout.addWidget(header)
 
-        # Sidebar
-        sidebar = QFrame()
-        sidebar.setFixedWidth(220)
-        sidebar_layout = QVBoxLayout(sidebar)
+        # ECU Grid Diagram
+        grid_layout = QGridLayout()
+        self.ecus = {
+            "Engine": ECUWidget("Engine"),
+            "Brakes": ECUWidget("Brakes"),
+            "Steering": ECUWidget("Steering"),
+            "Speed": ECUWidget("Speed"),
+            "Temperature": ECUWidget("Temperature")
+        }
+        
+        grid_layout.addWidget(self.ecus["Engine"], 0, 1)
+        grid_layout.addWidget(self.ecus["Steering"], 1, 0)
+        grid_layout.addWidget(self.ecus["Speed"], 1, 1)
+        grid_layout.addWidget(self.ecus["Brakes"], 1, 2)
+        grid_layout.addWidget(self.ecus["Temperature"], 2, 1)
+        
+        main_layout.addLayout(grid_layout)
 
-        title = QLabel("CAN-SENTINEL")
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("font-size: 20px; font-weight: bold; margin-bottom: 20px;")
+        # Alert Summary
+        self.alert_status = QLabel("SYSTEM STATUS: NORMAL")
+        self.alert_status.setAlignment(Qt.AlignCenter)
+        self.alert_status.setStyleSheet("font-size: 20px; font-weight: bold; color: #00e676; margin-top: 20px; margin-bottom: 10px;")
+        main_layout.addWidget(self.alert_status)
 
-        sidebar_layout.addWidget(title)
-        sidebar_layout.addWidget(QLabel("Dashboard"))
-        sidebar_layout.addWidget(QLabel("CAN Monitoring"))
-        sidebar_layout.addWidget(QLabel("Security Alerts"))
-        sidebar_layout.addWidget(QLabel("ECU Status"))
-        sidebar_layout.addWidget(QLabel("Analysis"))
-        sidebar_layout.addStretch()
+        # Alert Table
+        self.table = QTableWidget()
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["Timestamp", "Component", "CAN ID", "Frequency (Hz)", "Status"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background-color: #1e1e1e;
+                color: #ffffff;
+                gridline-color: #333333;
+                border: none;
+                font-size: 14px;
+            }
+            QHeaderView::section {
+                background-color: #2a2a2a;
+                color: #ffffff;
+                font-weight: bold;
+                border: 1px solid #333333;
+                padding: 5px;
+            }
+        """)
+        main_layout.addWidget(self.table)
 
-        # Main dashboard
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-
-        heading = QLabel("Diagnostic Dashboard")
-        heading.setStyleSheet("font-size: 24px; font-weight: bold;")
-        self.status = QLabel("System Status: Monitoring Live Traffic")
-        self.status.setStyleSheet("font-size: 16px; color: green;")
-
-        content_layout.addWidget(heading)
-        content_layout.addWidget(self.status)
-
-        # Dashboard cards
-        cards_layout = QHBoxLayout()
-        self.threat_level = QLabel("Threat Level\nNORMAL")
-        self.alert_count = 0
-        self.alert_card = QLabel("Security Alerts\n0")
-        self.alert_card.setStyleSheet("font-size: 18px; padding: 20px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 8px;")
-        self.threat_level.setStyleSheet("font-size: 18px; padding: 20px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 8px;")
-        cards_layout.addWidget(self.alert_card)
-        cards_layout.addWidget(self.threat_level)
-        content_layout.addLayout(cards_layout)
-        vehicle_title = QLabel("Vehicle System View")
-        vehicle_title.setStyleSheet("font-size: 18px; font-weight: bold; margin-top: 20px;")
-        content_layout.addWidget(vehicle_title)
-        self.vehicle_view = QLabel("ENGINE    SPEED   BRAKE    STEERING    TEMPERATURE")
-        self.vehicle_view.setStyleSheet("font-size: 16px; padding: 30px; border: 1px solid #ddd; border-radius: 8px;")
-        content_layout.addWidget(self.vehicle_view)
-
-        # Security Alerts Table
-        alert_title = QLabel("Live Intrusion Alerts")
-        alert_title.setStyleSheet("font-size: 18px; font-weight: bold; margin-top: 20px;")
-        content_layout.addWidget(alert_title)
-
-        self.traffic_table = QTableWidget()
-        self.traffic_table.setColumnCount(5)
-        self.traffic_table.setHorizontalHeaderLabels(
-            ["Timestamp", "Component", "CAN ID", "Frequency (Hz)", "Status"]
-        )
-        self.traffic_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        content_layout.addWidget(self.traffic_table)
-
-        main_layout.addWidget(sidebar)
-        main_layout.addWidget(content)
-
-        # Start background listener
         self.listener = AlertListenerThread()
         self.listener.new_alert.connect(self.add_alert)
         self.listener.start()
 
     def add_alert(self, data):
-        self.alert_count += 1
-        self.alert_card.setText(f"Security Alerts\n{self.alert_count}")
-        self.threat_level.setText("Threat Level\nHIGH")
-        self.alert_card.setStyleSheet("font-size: 18px; padding: 20px; background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; border-radius: 8px; font-weight: bold;")
-        self.threat_level.setStyleSheet("font-size: 18px; padding: 20px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; font-weight: bold;")
-        self.status.setText("System Status: INTRUSION DETECTED!")
-        self.vehicle_view.setText(f"⚠️ Affected System: {data.get('component', 'Unknown')}")
-        self.status.setStyleSheet("font-size: 16px; color: red; font-weight: bold;")
-
-        row_position = self.traffic_table.rowCount()
-        self.traffic_table.insertRow(row_position)
-
-        self.traffic_table.setItem(row_position, 0, QTableWidgetItem(str(data.get("timestamp", ""))))
+        self.alert_status.setText("SYSTEM STATUS: INTRUSION DETECTED")
+        self.alert_status.setStyleSheet("font-size: 20px; font-weight: bold; color: #ff1744; margin-top: 20px; margin-bottom: 10px;")
         
-        # Highlight component clearly
-        comp_item = QTableWidgetItem(str(data.get("component", "Unknown")))
-        comp_item.setForeground(Qt.red)
-        self.traffic_table.setItem(row_position, 1, comp_item)
-        
-        self.traffic_table.setItem(row_position, 2, QTableWidgetItem(str(data.get("can_id", ""))))
-        self.traffic_table.setItem(row_position, 3, QTableWidgetItem(str(data.get("frequency", ""))))
-        
-        status_item = QTableWidgetItem(str(data.get("status", "ANOMALY")))
-        status_item.setForeground(Qt.white)
-        status_item.setBackground(Qt.red)
-        self.traffic_table.setItem(row_position, 4, status_item)
+        comp_name = data.get("component", "Unknown")
+        if comp_name in self.ecus:
+            self.ecus[comp_name].set_compromised()
 
-app = QApplication(sys.argv)
-window = Dashboard()
-window.show()
-sys.exit(app.exec_())
+        row = self.table.rowCount()
+        self.table.insertRow(row)
+        
+        def make_item(text, color="#ffffff", bg="#1e1e1e"):
+            item = QTableWidgetItem(str(text))
+            item.setForeground(QColor(color))
+            item.setBackground(QColor(bg))
+            return item
+
+        self.table.setItem(row, 0, make_item(data.get("timestamp", "")))
+        self.table.setItem(row, 1, make_item(comp_name, color="#ff5252"))
+        self.table.setItem(row, 2, make_item(data.get("can_id", "")))
+        self.table.setItem(row, 3, make_item(data.get("frequency", "")))
+        self.table.setItem(row, 4, make_item("ANOMALY", color="#ffffff", bg="#b71c1c"))
+        
+        self.table.scrollToBottom()
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = Dashboard()
+    window.show()
+    sys.exit(app.exec_())
