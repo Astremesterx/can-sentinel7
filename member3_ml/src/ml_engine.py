@@ -32,7 +32,6 @@ def train_model(dataset_path):
         print("[-] Error: Dataset must contain 'can_id', 'frequency', and 'inter_arrival_time'.")
         return
 
-    # Convert hexadecimal can_id strings to integers for the ML model
     df['can_id'] = df['can_id'].apply(lambda x: int(str(x), 16) if isinstance(x, str) else x)
 
     X = df[features]
@@ -52,10 +51,10 @@ def run_live():
 
     model = joblib.load(MODEL_PATH)
     
-    # Indices based on C-Sniffer CSV output
     FREQ_IDX = 6
     IAT_IDX = 7
     ID_IDX = 2
+    COUNT_IDX = 5  # message_count column
 
     try:
         for line in sys.stdin:
@@ -72,13 +71,17 @@ def run_live():
                 can_id_int = int(can_id_hex, 16)
                 freq = float(parts[FREQ_IDX])
                 iat = float(parts[IAT_IDX])
+                msg_count = int(parts[COUNT_IDX])
             except ValueError:
                 continue
 
+            # WARM-UP FILTER: Ignore the first 5 messages of any ECU to prevent startup noise false alarms
+            if msg_count < 5:
+                continue
+                
             if freq == 0.0:
                 continue
 
-            # Predict based on CAN ID and timing features
             prediction = model.predict([[can_id_int, freq, iat]])[0]
             
             if prediction == -1:
