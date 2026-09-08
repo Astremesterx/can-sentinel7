@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 import joblib
+import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 import warnings
@@ -32,9 +33,9 @@ def train_model(dataset_path):
         print("[-] Error: Dataset must contain 'can_id', 'frequency', and 'inter_arrival_time'.")
         return
 
-    df['can_id'] = df['can_id'].apply(lambda x: int(str(x), 16) if isinstance(x, str) else x)
+    df['can_id'] = df['can_id'].astype(str).apply(lambda x: int(x, 16))
 
-    X = df[features]
+    X = df[features].values.astype(np.float64)
     print(f"[*] Training Isolation Forest on {len(X)} samples with features: {features}...")
     
     model = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
@@ -43,6 +44,56 @@ def train_model(dataset_path):
     os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
     joblib.dump(model, MODEL_PATH)
     print(f"[+] Model successfully trained and saved to {MODEL_PATH}")
+
+def evaluate_model(dataset_path):
+    if not os.path.exists(MODEL_PATH):
+        print(f"[-] Error: Trained model not found at {MODEL_PATH}. Please run with --train first.")
+        return
+
+    print(f"[*] Evaluating model performance against {dataset_path}...")
+    try:
+        df = pd.read_csv(dataset_path)
+    except FileNotFoundError:
+        print(f"[-] Error: Could not find dataset at {dataset_path}")
+        return
+
+    features = ['can_id', 'frequency', 'inter_arrival_time']
+    if not all(feature in df.columns for feature in features):
+        print("[-] Error: Dataset missing required feature columns.")
+        return
+
+    df['can_id'] = df['can_id'].astype(str).apply(lambda x: int(x, 16))
+    
+    # Filter startup warm-up if message_count exists
+    if 'message_count' in df.columns:
+        df = df[df['message_count'] >= 5]
+
+    X = df[features].values.astype(np.float64)
+    model = joblib.load(MODEL_PATH)
+    preds = model.predict(X)
+    
+    anomalies = (preds == -1).sum()
+    total = len(preds)
+    anomaly_rate = (anomalies / total * 100.0) if total > 0 else 0.0
+
+    print("=" * 60)
+    print(f"       CAN-SENTINEL ML EVALUATION REPORT")
+    print("=" * 60)
+    print(f" Total evaluated samples : {total}")
+    print(f" Normal samples (1)     : {total - anomalies} ({100.0 - anomaly_rate:.2f}%)")
+    print(f" Anomalies flagged (-1) : {anomalies} ({anomaly_rate:.2f}%)")
+    print("-" * 60)
+    print(f"{'Component':<15} {'CAN ID':<10} {'Samples':<10} {'Anomalies':<10}")
+    print("-" * 60)
+
+    for cid, name in SYSTEM_MAP.items():
+        cid_mask = (df['can_id'].values == cid)
+        sub_total = cid_mask.sum()
+        if sub_total > 0:
+            sub_anom = (preds[cid_mask] == -1).sum()
+            print(f"{name:<15} 0x{cid:03X}     {sub_total:<10} {sub_anom:<10}")
+
+    print("=" * 60)
 
 def run_live():
     if not os.path.exists(MODEL_PATH):
@@ -82,7 +133,8 @@ def run_live():
             if freq == 0.0:
                 continue
 
-            prediction = model.predict([[can_id_int, freq, iat]])[0]
+            sample = np.array([[can_id_int, freq, iat]], dtype=np.float64)
+            prediction = model.predict(sample)[0]
             
             if prediction == -1:
                 component = SYSTEM_MAP.get(can_id_int, "Unknown")
@@ -103,11 +155,14 @@ def run_live():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train", type=str)
-    parser.add_argument("--live", action="store_true")
+    parser.add_argument("--train", type=str, help="Train Isolation Forest model on CSV dataset")
+    parser.add_argument("--eval", type=str, help="Evaluate model performance against CSV dataset")
+    parser.add_argument("--live", action="store_true", help="Run live inference streaming from stdin")
     args = parser.parse_args()
 
     if args.train:
         train_model(args.train)
+    elif args.eval:
+        evaluate_model(args.eval)
     elif args.live:
         run_live()
