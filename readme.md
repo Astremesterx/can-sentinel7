@@ -143,9 +143,19 @@ Run the ultimate chained pipeline! This pipes the live C-Sniffer into the ML Eng
 ### Step 6: Simulate a Cyberattack (Terminal 3)
 Inject spoofed, high-frequency malicious packets to trigger an anomaly:
 ```bash
+# Default randomized attack (1 Hz):
 python3 member1_can/attacker/attack_ecu.py
+
+# High-frequency targeted DoS flood attack on Brakes (50 Hz):
+python3 member1_can/attacker/attack_ecu.py --mode flood --target brake
+
+# Rapid-fire targeted burst on Engine:
+python3 member1_can/attacker/attack_ecu.py --mode inject --target engine --rate 25.0 --count 50
+
+# Random ID and payload fuzzing attack:
+python3 member1_can/attacker/attack_ecu.py --mode fuzz --rate 10.0
 ```
-*(Watch the PyQt Dashboard instantly highlight the compromised physical component and log the intrusion alerts!)*
+*(Watch the PyQt Dashboard instantly highlight the compromised physical component, track the attack frequency, increment threat telemetry counters, and export incident reports!)*
 
 ---
 
@@ -157,6 +167,13 @@ Instead of managing three separate terminals, you can launch the complete ecosys
 ./integration/run_system.sh
 ```
 *(Automatically verifies vcan0, checks binaries, starts all ECUs, runs the live pipeline with the PyQt dashboard, and handles graceful teardown on Ctrl+C).*
+
+### Automated Review Demo Mode
+For rapid project demonstrations and presentations, run the automated demo:
+```bash
+./integration/run_system.sh --demo
+```
+*(Brings up the vehicle and dashboard, automatically injects a targeted flood attack on the Brakes after 4 seconds, and demonstrates real-time detection and self-healing recovery back to normal).*
 
 ### Running the Automated Test Suite
 To verify system integrity, normal baseline metrics, and attack detection sensitivity:

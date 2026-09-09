@@ -66,5 +66,16 @@ class TestAttackDetection(unittest.TestCase):
         normal_ratio = (preds == 1).mean()
         self.assertGreater(normal_ratio, 0.98, f"Normal sample preservation below threshold: {normal_ratio:.2%}")
 
+    def test_attacker_payload_contracts(self):
+        """Verify the attack simulator generates compliant CAN frame payloads."""
+        sys.path.insert(0, os.path.join(ROOT_DIR, "member1_can/attacker"))
+        import attack_ecu
+
+        for target in ["engine", "speed", "brake", "steering", "temperature"]:
+            payload, desc = attack_ecu.generate_payload(target)
+            self.assertEqual(len(payload), 8, f"Payload for {target} must be 8 bytes DLC")
+            self.assertIsInstance(payload, bytes, f"Payload for {target} must be bytes")
+            self.assertIsInstance(desc, str)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
